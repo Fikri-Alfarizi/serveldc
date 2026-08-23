@@ -8,13 +8,12 @@ export const data = new SlashCommandBuilder()
 export async function execute(interaction) {
     const userId = interaction.user.id;
     const username = interaction.user.username;
-    const REWARD = 2000 + Math.floor(Math.random() * 500); // Random bonus
+    const REWARD = 2000 + Math.floor(Math.random() * 500);
 
-    const status = userService.checkDaily(userId);
+    const status = await userService.checkDaily(userId);
 
     if (status.available) {
-        // Animation
-        const msg = await interaction.reply({
+        await interaction.reply({
             content: '⏳ **Mengecek absensi...**',
             fetchReply: true
         });
@@ -23,7 +22,7 @@ export async function execute(interaction) {
         await interaction.editReply('💳 **Memproses gaji harian...**');
         await new Promise(r => setTimeout(r, 1000));
 
-        userService.claimDaily(userId, username, REWARD);
+        await userService.claimDaily(userId, username, REWARD);
 
         const funFacts = [
             'Tahukah kamu? Koin ini tidak bisa dipakai beli cilok.',
@@ -36,11 +35,11 @@ export async function execute(interaction) {
         const embed = {
             title: '✅ **GAJIAN SUKSES CAIR!**',
             description: `Selamat <@${userId}>, uang tunai sudah masuk rekening!`,
-            color: 0x00FF00, // Green
+            color: 0x00FF00,
             thumbnail: { url: 'https://media.giphy.com/media/l0Ex6kAKAoFRsFh6M/giphy.gif' },
             fields: [
                 { name: '💰 Nominal Diterima', value: `\`RP ${REWARD.toLocaleString()}\``, inline: true },
-                { name: '📅 Streak Absen', value: `\`🔥 Aman\``, inline: true }, // Placeholder for streak feature if added later
+                { name: '📅 Streak Absen', value: `\`🔥 Aman\``, inline: true },
                 { name: '💡 Daily Wisdom', value: `*${randomFact}*`, inline: false }
             ],
             footer: { text: 'Balik lagi besok ya!', icon_url: interaction.user.displayAvatarURL() },
@@ -50,8 +49,6 @@ export async function execute(interaction) {
         await interaction.editReply({ content: '', embeds: [embed] });
 
     } else {
-        // Cooldown UI
-        const remainingSeconds = Math.ceil(status.remaining / 1000);
         const readyAt = Math.floor((Date.now() + status.remaining) / 1000);
 
         const embed = {

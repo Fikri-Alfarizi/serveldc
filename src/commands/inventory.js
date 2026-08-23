@@ -11,8 +11,8 @@ export async function execute(interaction) {
     try {
         await interaction.deferReply();
 
-        const items = inventoryService.getUserInventory(interaction.user.id);
-        const user = userService.getUser(interaction.user.id, interaction.user.username);
+        const items = await inventoryService.getUserInventory(interaction.user.id);
+        const user = await userService.getUser(interaction.user.id, interaction.user.username);
 
         if (items.length === 0) {
             return await interaction.editReply({
@@ -24,7 +24,6 @@ export async function execute(interaction) {
             });
         }
 
-        // Grouping
         const grouped = {};
         items.forEach(invItem => {
             const itemDef = getItemById(invItem.item_id);
@@ -53,7 +52,6 @@ export async function execute(interaction) {
         };
 
         for (const [type, invItems] of Object.entries(grouped)) {
-            // Safety: Chunk items if too many
             const PREVIEW_LIMIT = 10;
             const remaining = invItems.length - PREVIEW_LIMIT;
 
@@ -87,7 +85,7 @@ export async function execute(interaction) {
     } catch (error) {
         console.error('Inventory Error:', error);
         await interaction.editReply({
-            content: '❌ **Gagal memuat inventory!**\nAda masalah teknis (mungkin database lama). Coba lapor admin.',
+            content: '❌ **Gagal memuat inventory!**\nAda masalah teknis. Coba lapor admin.',
             embeds: []
         }).catch(() => { });
     }

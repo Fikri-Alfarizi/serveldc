@@ -12,12 +12,8 @@ export const data = new SlashCommandBuilder()
             .setAutocomplete(true)
     );
 
-/**
- * Autocomplete handler - dipanggil saat user mengetik
- */
 export async function autocomplete(interaction) {
     try {
-        // Check guild context
         if (!interaction.guild) {
             return interaction.respond([]);
         }
@@ -25,12 +21,10 @@ export async function autocomplete(interaction) {
         const query = interaction.options.getFocused();
         const guildId = interaction.guild.id;
 
-        // Search games dari cache
-        const games = gameService.searchGames(guildId, query, 25);
+        const games = await gameService.searchGames(guildId, query, 25);
 
-        // Format untuk Discord autocomplete
         const choices = games.map(game => ({
-            name: game.title.substring(0, 100), // Max 100 chars
+            name: game.title.substring(0, 100),
             value: game.message_id
         }));
 
@@ -41,11 +35,7 @@ export async function autocomplete(interaction) {
     }
 }
 
-/**
- * Execute handler - dipanggil saat user memilih game
- */
 export async function execute(interaction) {
-    // Check guild context
     if (!interaction.guild) {
         return interaction.reply({
             content: '❌ Command ini hanya bisa digunakan di server!',
@@ -56,8 +46,7 @@ export async function execute(interaction) {
     const messageId = interaction.options.getString('nama');
     const guildId = interaction.guild.id;
 
-    // Check jika game source channel sudah di-set
-    const settings = guildService.getSettings(guildId);
+    const settings = await guildService.getSettings(guildId);
     if (!settings || !settings.game_source_channel_id) {
         return interaction.reply({
             content: '❌ **Admin belum setup sumber game!**\nMinta admin buka dashboard `/admin` -> `Settings (Features)` -> Set `Game Premium Source`.',
@@ -65,37 +54,28 @@ export async function execute(interaction) {
         });
     }
 
-    // Get game dari cache
-    const game = gameService.getGameByMessageId(messageId);
+    const game = await gameService.getGameByMessageId(messageId);
 
     if (!game) {
-        // Mungkin user ketik manual bukan pilih dari autocomplete
-        // Coba search ulang
-        const searchResults = gameService.searchGames(guildId, messageId, 1);
+        const searchResults = await gameService.searchGames(guildId, messageId, 1);
         if (searchResults.length === 0) {
             return interaction.reply({
                 content: '❌ **Game tidak ditemukan!**\nCoba ketik nama game dan pilih dari daftar yang muncul.',
                 ephemeral: true
             });
         }
-        // Use first result
         return showGamePreview(interaction, searchResults[0]);
     }
 
     await showGamePreview(interaction, game);
 }
 
-/**
- * Show game preview dengan konfirmasi button
- */
 async function showGamePreview(interaction, game) {
-    // Truncate content jika terlalu panjang
     let description = game.content || 'Tidak ada deskripsi';
     if (description.length > 500) {
         description = description.substring(0, 500) + '...';
     }
 
-    // Build embed preview
     const embed = {
         title: `🎮 ${game.title}`,
         description: description,
@@ -112,12 +92,10 @@ async function showGamePreview(interaction, game) {
         }
     };
 
-    // Add image jika ada
     if (game.image_url) {
         embed.thumbnail = { url: game.image_url };
     }
 
-    // Build buttons
     const confirmButton = new ButtonBuilder()
         .setCustomId(`game_confirm_${game.message_id}`)
         .setLabel('📬 Kirim ke DM')
@@ -130,17 +108,15 @@ async function showGamePreview(interaction, game) {
 
     const row = new ActionRowBuilder().addComponents(confirmButton, cancelButton);
 
-    // Send preview
     const response = await interaction.reply({
         embeds: [embed],
         components: [row],
         ephemeral: true
     });
 
-    // Handle button clicks
     const collector = response.createMessageComponentCollector({
         componentType: ComponentType.Button,
-        time: 60000 // 1 menit timeout
+        time: 60000
     });
 
     collector.on('collect', async i => {
@@ -166,17 +142,12 @@ async function showGamePreview(interaction, game) {
                     components: []
                 });
             } catch (e) {
-                // Message might be deleted
             }
         }
     });
 }
 
-/**
- * Send game details ke DM user
- */
 async function sendGameToDM(interaction, game) {
-    // Build full game embed untuk DM
     const dmEmbed = {
         title: `🎮 ${game.title}`,
         description: game.content || 'Tidak ada deskripsi',
@@ -188,7 +159,6 @@ async function sendGameToDM(interaction, game) {
         timestamp: new Date()
     };
 
-    // Add link jika ada
     if (game.link) {
         dmEmbed.fields.push({
             name: '📥 Download Link',
@@ -197,12 +167,10 @@ async function sendGameToDM(interaction, game) {
         });
     }
 
-    // Add image jika ada
     if (game.image_url) {
         dmEmbed.image = { url: game.image_url };
     }
 
-    // Try to send DM
     let dmStatus = '✅ **Link game berhasil dikirim ke DM kamu!**\nCek DM untuk mengambil hadiahnya.';
 
     try {
@@ -212,7 +180,6 @@ async function sendGameToDM(interaction, game) {
         dmStatus = '❌ **Gagal mengirim DM!**\nPastikan DM kamu tidak tertutup (Settings > Privacy & Safety > Allow direct messages from server members).';
     }
 
-    // Update original message
     await interaction.update({
         content: dmStatus,
         embeds: [],

@@ -14,9 +14,8 @@ export async function execute(interaction) {
     const userId = interaction.user.id;
     const username = interaction.user.username;
 
-    userService.setAfk(userId, username, reason);
+    await userService.setAfk(userId, username, reason);
 
-    // Ganti nickname kalau bisa (Optional, permission dependent)
     try {
         if (interaction.member.manageable) {
             const oldNick = interaction.member.nickname || interaction.user.username;

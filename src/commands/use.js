@@ -8,7 +8,7 @@ export const data = new SlashCommandBuilder()
 
 export async function execute(interaction) {
     const userId = interaction.user.id;
-    const inventory = inventoryService.getUserInventory(userId);
+    const inventory = await inventoryService.getUserInventory(userId);
 
     const distinctItems = [];
     const seen = new Set();
@@ -27,7 +27,6 @@ export async function execute(interaction) {
         return interaction.reply({ content: '🎒 **Tas kamu kosong!** Gak ada yang bisa dipakai.', ephemeral: true });
     }
 
-    // Build Menu
     const options = distinctItems.slice(0, 25).map(item => {
         return new StringSelectMenuOptionBuilder()
             .setLabel(item.def.name)
@@ -56,7 +55,6 @@ export async function execute(interaction) {
         const itemId = i.values[0];
         const itemDef = getItemById(itemId);
 
-        // Special handling for Custom Color
         if (itemId === 'color_custom') {
             const modal = new ModalBuilder()
                 .setCustomId(`color_modal_${itemId}`)
@@ -76,7 +74,6 @@ export async function execute(interaction) {
 
             await i.showModal(modal);
 
-            // Wait for modal submit
             try {
                 const submitted = await i.awaitModalSubmit({ time: 60000, filter: m => m.customId === `color_modal_${itemId}` && m.user.id === i.user.id });
 
@@ -90,7 +87,6 @@ export async function execute(interaction) {
                 const member = await guild.members.fetch(i.user.id);
                 const roleName = `Color-${i.user.username}`;
 
-                // Check if user already has a custom color role
                 let role = guild.roles.cache.find(r => r.name === roleName);
 
                 if (role) {
@@ -99,18 +95,16 @@ export async function execute(interaction) {
                     role = await guild.roles.create({
                         name: roleName,
                         color: hexColor,
-                        position: guild.roles.highest.position - 5, // Attempt to put it high but safe
+                        position: guild.roles.highest.position - 5,
                         reason: 'Custom Color Item Used'
                     });
                 }
 
-                // Assign role if not already
                 if (!member.roles.cache.has(role.id)) {
                     await member.roles.add(role);
                 }
 
-                // Consume Item
-                inventoryService.useItem(userId, itemId);
+                await inventoryService.useItem(userId, itemId);
 
                 await submitted.reply({
                     embeds: [{
@@ -123,12 +117,10 @@ export async function execute(interaction) {
 
             } catch (err) {
                 console.error(err);
-                // If timeout or error, do nothing or user cancelled
             }
-            return; // End flow for this item
+            return;
         }
 
-        // Generic Usage Logic
         let successMessage = '';
         try {
             switch (itemDef.type) {
@@ -136,7 +128,6 @@ export async function execute(interaction) {
                     if (itemDef.roleId) {
                         const member = await i.guild.members.fetch(userId);
 
-                        // Check if role exists in guild
                         const role = i.guild.roles.cache.get(itemDef.roleId);
                         if (!role) {
                             return i.update({ content: `⚠️ **Error Config:** Role ID \`${itemDef.roleId}\` tidak ditemukan di server ini. Hubungi Admin.`, components: [] });
@@ -162,8 +153,7 @@ export async function execute(interaction) {
                     break;
             }
 
-            // Consume
-            inventoryService.useItem(userId, itemId);
+            await inventoryService.useItem(userId, itemId);
 
             await i.update({
                 content: '',

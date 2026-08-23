@@ -13,24 +13,19 @@ export async function execute(interaction) {
 
     const targetUser = interaction.options.getUser('user') || interaction.user;
 
-    // Get stats
-    const userData = userService.getUser(targetUser.id, targetUser.username);
+    const userData = await userService.getUser(targetUser.id, targetUser.username);
     const member = await interaction.guild.members.fetch(targetUser.id);
 
-    // Stats Calculations
     const xpNeeded = userData.level * 100;
     const progress = Math.min(Math.floor((userData.xp / xpNeeded) * 100), 100);
 
-    // Visual Progress Bar (Text Based)
     const barSize = 15;
     const filled = Math.round((progress / 100) * barSize);
     const empty = barSize - filled;
-    // Using special block characters for a smooth bar
     const filledChar = '█';
     const emptyChar = '░';
     const progressBar = filledChar.repeat(filled) + emptyChar.repeat(empty);
 
-    // Dynamic Title Badge
     let titleBadge = 'Anggota Teladan';
     if (userData.level >= 50) titleBadge = '👑 LEGEND';
     else if (userData.level >= 20) titleBadge = '🔥 ELITE';

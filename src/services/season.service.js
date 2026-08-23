@@ -1,35 +1,34 @@
 import db from '../db/index.js';
 
 class SeasonService {
-    getCurrentSeason() {
-        return db.prepare('SELECT * FROM seasons WHERE is_active = 1 ORDER BY id DESC LIMIT 1').get();
+    async getCurrentSeason() {
+        return await db.get('SELECT * FROM seasons WHERE is_active = 1 ORDER BY id DESC LIMIT 1');
     }
 
-    startNewSeason(name, daysDuration) {
-        const current = this.getCurrentSeason();
+    async startNewSeason(name, daysDuration) {
+        const current = await this.getCurrentSeason();
         if (current) {
-            this.endSeason(current.id);
+            await this.endSeason(current.id);
         }
 
         const nextNumber = current ? current.season_number + 1 : 1;
         const startDate = Date.now();
         const endDate = startDate + (daysDuration * 24 * 60 * 60 * 1000);
 
-        db.prepare(`
-            INSERT INTO seasons (season_number, name, start_date, end_date, is_active)
-            VALUES (?, ?, ?, ?, 1)
-        `).run(nextNumber, name, startDate, endDate);
+        await db.run(
+            'INSERT INTO seasons (season_number, name, start_date, end_date, is_active) VALUES (?, ?, ?, ?, 1)',
+            nextNumber, name, startDate, endDate
+        );
 
-        return this.getCurrentSeason();
+        return await this.getCurrentSeason();
     }
 
-    endSeason(seasonId) {
-        db.prepare('UPDATE seasons SET is_active = 0 WHERE id = ?').run(seasonId);
-        // Here we could trigger rewards, snapshots, etc.
+    async endSeason(seasonId) {
+        await db.run('UPDATE seasons SET is_active = 0 WHERE id = ?', seasonId);
     }
 
-    getSeasonTimeLeft() {
-        const season = this.getCurrentSeason();
+    async getSeasonTimeLeft() {
+        const season = await this.getCurrentSeason();
         if (!season) return null;
 
         const now = Date.now();

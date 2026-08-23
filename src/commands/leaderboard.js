@@ -9,7 +9,7 @@ export async function execute(interaction) {
     try {
         await interaction.deferReply();
 
-        const users = userService.getLeaderboard(10);
+        const users = await userService.getLeaderboard(10);
 
         if (!users || users.length === 0) {
             const errorEmbed = {
@@ -23,15 +23,11 @@ export async function execute(interaction) {
         const topList = users.map((stat, i) => {
             const name = stat.username || 'Unknown';
             const rankEmoji = i < 3 ? topThreeEmojis[i] : `\` #${i + 1} \``;
-
-            // Layout: Rank - Name - Stats
-            // Bold name for top 3
             const formattedName = i < 3 ? `**${name.toUpperCase()}**` : name;
 
             return `${rankEmoji} ${formattedName}\n\`\`\`yaml\nLevel: ${stat.level} | XP: ${stat.xp.toLocaleString()}\`\`\``;
         }).join('\n');
 
-        // Find self rank
         const selfRankIndex = users.findIndex(u => u.id === interaction.user.id);
         const selfRankText = selfRankIndex !== -1
             ? `🔥 Kamu peringkat #${selfRankIndex + 1}`
@@ -40,7 +36,7 @@ export async function execute(interaction) {
         const embed = {
             title: '🏆 **HALL OF FAME (TOP 10)**',
             description: '*Ranking ini diupdate secara realtime berdasarkan aktivitas sedunia (server).*',
-            color: 0xFFD700, // Gold
+            color: 0xFFD700,
             thumbnail: {
                 url: interaction.guild.iconURL({ dynamic: true })
             },

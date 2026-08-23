@@ -22,10 +22,9 @@ export async function execute(interaction) {
             return interaction.reply({ content: '🚫 **Self-Rep Error!** Narsis banget lu.', ephemeral: true });
         }
 
-        const result = reputationService.giveReputation(interaction.user.id, targetUser.id);
+        const result = await reputationService.giveReputation(interaction.user.id, targetUser.id);
 
         if (result.success) {
-            // Animation
             const msg = await interaction.reply({ content: `🤝 **Memberikan respect ke ${targetUser.username}...**`, fetchReply: true });
             setTimeout(() => {
                 msg.edit({
@@ -48,7 +47,7 @@ export async function execute(interaction) {
     }
 
     if (subcommand === 'stats') {
-        const stats = reputationService.getReputation(targetUser.id);
+        const stats = await reputationService.getReputation(targetUser.id);
 
         return interaction.reply({
             embeds: [{

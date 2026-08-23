@@ -9,7 +9,7 @@ export const data = new SlashCommandBuilder()
             .setDescription('Lihat berapa orang yang udah lo ajak'));
 
 export async function execute(interaction) {
-    const count = inviteService.getInviteCount(interaction.user.id);
+    const count = await inviteService.getInviteCount(interaction.user.id);
 
     return interaction.reply({
         embeds: [{

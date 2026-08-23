@@ -9,17 +9,17 @@ export async function execute(interaction) {
     const userId = interaction.user.id;
     const username = interaction.user.username;
 
-    const REWARD_AMOUNT = 10000; // Bonus gede
+    const REWARD_AMOUNT = 10000;
 
-    const status = userService.checkWeekly(userId);
+    const status = await userService.checkWeekly(userId);
 
     if (status.available) {
-        userService.claimWeekly(userId, username, REWARD_AMOUNT);
+        await userService.claimWeekly(userId, username, REWARD_AMOUNT);
 
         const embed = {
             title: '🎁 **BONUS MINGGUAN CAIR!**',
             description: `Gokil! Kamu dapet bonus **RP ${REWARD_AMOUNT.toLocaleString()}**!\nTerima kasih udah setia di server ini!`,
-            color: 0xFFD700, // Gold
+            color: 0xFFD700,
             thumbnail: { url: 'https://media.giphy.com/media/maJfaPl0JNswFJDLPH/giphy.gif' }
         };
         await interaction.reply({ embeds: [embed] });

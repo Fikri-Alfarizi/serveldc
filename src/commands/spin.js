@@ -8,7 +8,6 @@ export const data = new SlashCommandBuilder()
     .setDescription('Putar slot keberuntungan! Bisa Gratis (Daily) atau Premium.');
 
 export async function execute(interaction) {
-    // UI Awal: Pilih Mode
     const freeButton = new ButtonBuilder()
         .setCustomId('spin_free')
         .setLabel('🎰 Spin Gratis (Daily)')
@@ -51,7 +50,7 @@ async function handleSpin(interaction, mode) {
     const guildId = interaction.guild.id;
 
     // 1. Cek Game Source
-    const settings = guildService.getSettings(guildId);
+    const settings = await guildService.getSettings(guildId);
     if (!settings.game_source_channel_id) {
         return interaction.update({
             content: '❌ **Admin belum setup sumber game!**\nMinta admin ketik `/settings gamesource <channel>` dulu.',
@@ -61,7 +60,7 @@ async function handleSpin(interaction, mode) {
 
     // 2. Validate Requirement based on mode
     if (mode === 'free') {
-        const user = db.prepare('SELECT daily_spins, last_spin_time FROM users WHERE id = ?').get(userId);
+        const user = await db.get('SELECT daily_spins, last_spin_time FROM users WHERE id = ?', userId);
         const today = new Date().setHours(0, 0, 0, 0);
         const lastSpinDate = new Date(user?.last_spin_time || 0).setHours(0, 0, 0, 0);
         let spinsToday = (user?.daily_spins || 0);
@@ -76,12 +75,10 @@ async function handleSpin(interaction, mode) {
         }
 
         // Update Usage
-        db.prepare(`UPDATE users SET daily_spins = ?, last_spin_time = ? WHERE id = ?`)
-            .run(spinsToday + 1, Date.now(), userId);
+        await db.run('UPDATE users SET daily_spins = ?, last_spin_time = ? WHERE id = ?', spinsToday + 1, Date.now(), userId);
 
     } else if (mode === 'premium') {
-        // Cek Ticket
-        const hasTicket = inventoryService.hasItem(userId, 'premium_spin_ticket');
+        const hasTicket = await inventoryService.hasItem(userId, 'premium_spin_ticket');
         if (!hasTicket) {
             return interaction.update({
                 content: '❌ **Gak punya tiket bos!**\nBeli dulu `Premium Spin Ticket` di `/shop` bagian Gacha.',
@@ -89,11 +86,9 @@ async function handleSpin(interaction, mode) {
             });
         }
 
-        // Consume Ticket
-        inventoryService.useItem(userId, 'premium_spin_ticket');
+        await inventoryService.useItem(userId, 'premium_spin_ticket');
     }
 
-    // 3. Fetch Games
     let validGames = [];
     try {
         const sourceChannel = await interaction.guild.channels.fetch(settings.game_source_channel_id);
@@ -107,17 +102,14 @@ async function handleSpin(interaction, mode) {
         return interaction.update({ content: '❌ **Error Fetching Games!** Cek permission bot.', embeds: [], components: [] });
     }
 
-    // 4. Animation
     const slots = mode === 'premium' ? ['💎', '👑', '🚀', '🌟', '🔥'] : ['🍒', '🍋', '🔔', '💩', '7️⃣'];
 
-    // Initial Update to remove buttons
     await interaction.update({
         content: mode === 'premium' ? '🔥 **PREMIUM SPIN STARTING...** 🔥' : '🎰 **SPINNING...**',
         embeds: [],
         components: []
     });
 
-    // Loop Animasi
     const loops = mode === 'premium' ? 5 : 3;
     for (let i = 0; i < loops; i++) {
         const a = slots[Math.floor(Math.random() * slots.length)];
@@ -128,16 +120,12 @@ async function handleSpin(interaction, mode) {
         await new Promise(r => setTimeout(r, 800));
     }
 
-    // 5. Result
-    // Logic: Premium selalu Jackpot visual, Free bisa random
     const prizeMsg = validGames.random();
 
-    // Parse Image
     let prizeImage = null;
     if (prizeMsg.attachments.size > 0) prizeImage = prizeMsg.attachments.first().url;
     else if (prizeMsg.embeds.length > 0 && prizeMsg.embeds[0].image) prizeImage = prizeMsg.embeds[0].image.url;
 
-    // Send DM
     const prizeEmbed = {
         title: mode === 'premium' ? '💎 PREMIUM JACKPOT REWARD' : '🎁 HADIAH SPIN KAMU',
         description: `Selamat! Ini hadiah game kamu:\n\n${prizeMsg.content}\n\n*Simpan pesan ini baik-baik!*`,
@@ -153,7 +141,6 @@ async function handleSpin(interaction, mode) {
         dmStatus = '❌ **Gagal kirim DM!** Buka DM kamu woy!';
     }
 
-    // Final Message
     const finalEmbed = {
         title: mode === 'premium' ? '💎 **JACKPOT SULTAN!** 💎' : '🎰 **SPIN SELESAI!**',
         description: `Selamat! Kamu dapat hadiah dari kotak misteri.\n\n${dmStatus}`,

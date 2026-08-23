@@ -7,7 +7,7 @@ export const data = new SlashCommandBuilder()
     .setDescription('[👤 Public] Lamar pekerjaan baru');
 
 export async function execute(interaction) {
-    const user = db.prepare('SELECT job FROM users WHERE id = ?').get(interaction.user.id);
+    const user = await db.get('SELECT job FROM users WHERE id = ?', interaction.user.id);
     const currentJob = user?.job || 'Pengangguran';
 
     const options = JOBS.map(job => ({
@@ -32,7 +32,6 @@ export async function execute(interaction) {
 
     const response = await interaction.reply({ embeds: [embed], components: [row] });
 
-    // Collector for interaction
     const collector = response.createMessageComponentCollector({ componentType: ComponentType.StringSelect, time: 60000 });
 
     collector.on('collect', async i => {
@@ -43,8 +42,7 @@ export async function execute(interaction) {
         const selectedJobId = i.values[0];
         const job = JOBS.find(j => j.id === selectedJobId);
 
-        // Store Job ID (cleaner), not name
-        db.prepare('UPDATE users SET job = ? WHERE id = ?').run(job.id, i.user.id);
+        await db.run('UPDATE users SET job = ? WHERE id = ?', job.id, i.user.id);
 
         await i.update({
             content: `🎉 Selamat! Kamu sekarang bekerja sebagai **${job.name}**.\nGunakan \`/work\` untuk mulai cari duit!`,

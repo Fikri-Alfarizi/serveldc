@@ -9,15 +9,10 @@ export const data = new SlashCommandBuilder()
     .setDescription('Beli item tanpa ribet ngetik ID');
 
 export async function execute(interaction) {
-    // 1. Initial Listing
-    const user = userService.getUser(interaction.user.id, interaction.user.username);
+    const user = await userService.getUser(interaction.user.id, interaction.user.username);
 
-    // Sort items by price (cheapest first)
     const items = [...SHOP_ITEMS].sort((a, b) => a.price - b.price);
 
-    // Create Options (Max 25 for Discord, assuming list fits or we group. 
-    // SHOP_ITEMS is small for now. If large, pagination needed.
-    // Let's filter out "Roles" from quick buy if needed? Nah show all.
     const options = items.slice(0, 25).map(item => {
         let emoji = '📦';
         if (item.type === 'role') emoji = '👑';
@@ -51,15 +46,13 @@ export async function execute(interaction) {
         fetchReply: true
     });
 
-    // 2. Collector
     const collector = response.createMessageComponentCollector({ componentType: ComponentType.StringSelect, time: 60000 });
 
     collector.on('collect', async i => {
         const itemId = i.values[0];
         const item = getItemById(itemId);
 
-        // Safety check wallet again
-        const currentUser = userService.getUser(i.user.id);
+        const currentUser = await userService.getUser(i.user.id);
 
         if (currentUser.coins < item.price) {
             await i.update({
@@ -71,11 +64,10 @@ export async function execute(interaction) {
         }
 
         try {
-            // Process
-            userService.addCoins(i.user.id, i.user.username, -item.price);
+            await userService.addCoins(i.user.id, i.user.username, -item.price);
 
             const expiresAt = item.duration ? Math.floor((Date.now() + item.duration) / 1000) : null;
-            inventoryService.addItem(i.user.id, item.id, expiresAt, {
+            await inventoryService.addItem(i.user.id, item.id, expiresAt, {
                 originalPrice: item.price,
                 boughtAt: new Date().toISOString()
             });

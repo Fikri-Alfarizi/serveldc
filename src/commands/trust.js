@@ -8,7 +8,7 @@ export const data = new SlashCommandBuilder()
 
 export async function execute(interaction) {
     const targetUser = interaction.options.getUser('user') || interaction.user;
-    const score = trustService.getTrustScore(targetUser.id);
+    const score = await trustService.getTrustScore(targetUser.id);
 
     let status = '🟢 SAFE';
     let color = 0x2ECC71;
@@ -21,7 +21,6 @@ export async function execute(interaction) {
         color = 0xF1C40F;
     }
 
-    // Visual Gauge
     const maxBars = 10;
     const filledBars = Math.round((score / 100) * maxBars);
     const emptyBars = maxBars - filledBars;

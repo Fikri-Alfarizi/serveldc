@@ -13,7 +13,7 @@ class GameService {
      * @returns {number} - Jumlah games yang di-sync
      */
     async syncGamesFromChannel(client, guildId) {
-        const settings = guildService.getSettings(guildId);
+        const settings = await guildService.getSettings(guildId);
 
         if (!settings || !settings.game_source_channel_id) {
             console.log(`⏭️ Skip sync games for guild ${guildId} - no source channel`);
@@ -27,11 +27,10 @@ class GameService {
                 return 0;
             }
 
-            // Fetch messages (limit 100 per batch, bisa diulang untuk lebih)
+            // Fetch messages
             let allMessages = [];
             let lastId = null;
 
-            // Fetch up to 500 messages (5 batches)
             for (let i = 0; i < 5; i++) {
                 const options = { limit: 100 };
                 if (lastId) options.before = lastId;
@@ -45,24 +44,20 @@ class GameService {
                 if (messages.size < 100) break;
             }
 
-            // Filter hanya message valid (bukan bot, ada content)
             const validMessages = allMessages.filter(m => !m.author.bot && m.content.length > 5);
 
             // Clear old cache untuk guild ini
-            db.prepare('DELETE FROM games_cache WHERE guild_id = ?').run(guildId);
-
-            // Insert new games
-            const insertStmt = db.prepare(`
-                INSERT OR REPLACE INTO games_cache 
-                (guild_id, message_id, title, content, link, image_url, created_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-            `);
+            await db.run('DELETE FROM games_cache WHERE guild_id = ?', guildId);
 
             let count = 0;
             for (const msg of validMessages) {
                 const parsed = this.parseGameMessage(msg);
                 if (parsed.title) {
-                    insertStmt.run(
+                    await db.run(`
+                        REPLACE INTO games_cache 
+                        (guild_id, message_id, title, content, link, image_url, created_at)
+                        VALUES (?, ?, ?, ?, ?, ?, ?)
+                    `,
                         guildId,
                         msg.id,
                         parsed.title,
@@ -89,18 +84,13 @@ class GameService {
      */
     parseGameMessage(message) {
         const lines = message.content.split('\n');
-
-        // Title: baris pertama (biasanya nama game)
         let title = lines[0] || 'Unknown Game';
-        // Batasi panjang title untuk autocomplete (max 100 chars)
         title = title.substring(0, 100);
 
-        // Link: cari URL dalam content
         const urlRegex = /(https?:\/\/[^\s]+)/g;
         const links = message.content.match(urlRegex);
         const link = links ? links[0] : null;
 
-        // Image: dari attachment atau embed
         let imageUrl = null;
         if (message.attachments.size > 0) {
             imageUrl = message.attachments.first().url;
@@ -123,42 +113,42 @@ class GameService {
      * @param {number} limit - Max results (default 25 for Discord autocomplete)
      * @returns {Array} - List of matching games
      */
-    searchGames(guildId, query, limit = 25) {
+    async searchGames(guildId, query, limit = 25) {
         if (!query || query.length < 1) {
-            // Jika query kosong, return games terbaru
-            return db.prepare(`
+            return await db.all(`
                 SELECT * FROM games_cache 
                 WHERE guild_id = ? 
                 ORDER BY created_at DESC 
                 LIMIT ?
-            `).all(guildId, limit);
+            `, guildId, limit);
         }
 
-        // Search dengan LIKE (case insensitive)
         const searchQuery = `%${query}%`;
-        return db.prepare(`
+        const startsWithQuery = `${query}%`;
+
+        return await db.all(`
             SELECT * FROM games_cache 
             WHERE guild_id = ? AND title LIKE ?
             ORDER BY 
                 CASE WHEN title LIKE ? THEN 0 ELSE 1 END,
                 created_at DESC
             LIMIT ?
-        `).all(guildId, searchQuery, `${query}%`, limit);
+        `, guildId, searchQuery, startsWithQuery, limit);
     }
 
     /**
      * Get single game by message ID
      */
-    getGameByMessageId(messageId) {
-        return db.prepare('SELECT * FROM games_cache WHERE message_id = ?').get(messageId);
+    async getGameByMessageId(messageId) {
+        return await db.get('SELECT * FROM games_cache WHERE message_id = ?', messageId);
     }
 
     /**
      * Get game count for a guild
      */
-    getGameCount(guildId) {
-        const result = db.prepare('SELECT COUNT(*) as count FROM games_cache WHERE guild_id = ?').get(guildId);
-        return result?.count || 0;
+    async getGameCount(guildId) {
+        const result = await db.get('SELECT COUNT(*) as count FROM games_cache WHERE guild_id = ?', guildId);
+        return result?.count || result?.['COUNT(*)'] || 0;
     }
 
     /**

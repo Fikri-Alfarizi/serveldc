@@ -1,5 +1,5 @@
-import { SlashCommandBuilder, StringSelectMenuBuilder, StringSelectMenuOptionBuilder, ActionRowBuilder, ComponentType, ButtonBuilder, ButtonStyle } from 'discord.js';
-import { getJobById, JOBS } from '../config/jobs/jobs.data.js';
+import { SlashCommandBuilder, StringSelectMenuBuilder, StringSelectMenuOptionBuilder, ActionRowBuilder, ComponentType } from 'discord.js';
+import { JOBS } from '../config/jobs/jobs.data.js';
 import userService from '../services/user.service.js';
 import db from '../db/index.js';
 
@@ -8,9 +8,8 @@ export const data = new SlashCommandBuilder()
     .setDescription('[👤 Public] Bekerja sesuai profesi untuk dapat gaji');
 
 export async function execute(interaction) {
-    const user = db.prepare('SELECT job FROM users WHERE id = ?').get(interaction.user.id);
+    const user = await db.get('SELECT job FROM users WHERE id = ?', interaction.user.id);
 
-    // Compat: Match ID or Name
     let jobConfig = JOBS.find(j => j.id === user?.job);
     if (!jobConfig) jobConfig = JOBS.find(j => j.name === user?.job);
 
@@ -21,19 +20,17 @@ export async function execute(interaction) {
         });
     }
 
-    // Task & Logic
     const task = jobConfig.tasks[Math.floor(Math.random() * jobConfig.tasks.length)];
 
-    // UI: Select Menu for Answers (Cleaner than buttons for long text)
     const selectMenu = new StringSelectMenuBuilder()
         .setCustomId('work_answer')
         .setPlaceholder('Pilih tindakan yang benar...')
         .addOptions(
             task.options.map((opt, i) =>
                 new StringSelectMenuOptionBuilder()
-                    .setLabel(opt.substring(0, 100)) // Discord limit
+                    .setLabel(opt.substring(0, 100))
                     .setValue(`ans_${i}`)
-                    .setEmoji(['🇦', '🇧', '🇨', '🇩'][i] || '🔧')
+                    .setEmoji(['🇦', '🇧', '<ctrl42>', '🇩'][i] || '🔧')
             )
         );
 
@@ -61,9 +58,8 @@ export async function execute(interaction) {
         const selectedAnswer = task.options[selectedIndex];
 
         if (selectedAnswer === task.answer) {
-            // Success
             const salary = Math.floor(Math.random() * (jobConfig.salary.max - jobConfig.salary.min + 1)) + jobConfig.salary.min;
-            userService.addCoins(i.user.id, i.user.username, salary);
+            await userService.addCoins(i.user.id, i.user.username, salary);
 
             const successEmbed = {
                 title: '✅ **KERJA BAGUS!**',
@@ -77,7 +73,6 @@ export async function execute(interaction) {
 
             await i.update({ embeds: [successEmbed], components: [] });
         } else {
-            // Fail
             const failEmbed = {
                 title: '❌ **SALAH PROCEDURE!**',
                 description: `Aduh, kamu melakukan kesalahan fatal.`,

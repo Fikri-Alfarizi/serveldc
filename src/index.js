@@ -13,7 +13,7 @@ import { runAutoChat } from './services/autochat.service.js';
 import gameService from './services/game.service.js';
 
 const app = express();
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT || process.env.SERVER_PORT || 3001;
 
 // Middleware
 app.use(express.json());

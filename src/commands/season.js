@@ -24,12 +24,12 @@ export async function execute(interaction) {
     const subcommand = interaction.options.getSubcommand();
 
     if (subcommand === 'info') {
-        const current = seasonService.getCurrentSeason();
+        const current = await seasonService.getCurrentSeason();
         if (!current) {
             return interaction.reply('⚠️ Belum ada Season yang berjalan. Minta admin mulai dulu!');
         }
 
-        const timeLeft = seasonService.getSeasonTimeLeft();
+        const timeLeft = await seasonService.getSeasonTimeLeft();
         const daysLeft = Math.ceil(timeLeft / (1000 * 60 * 60 * 24));
 
         return interaction.reply({
@@ -42,7 +42,7 @@ export async function execute(interaction) {
     }
 
     if (subcommand === 'leaderboard') {
-        const topUsers = db.prepare('SELECT username, seasonal_xp FROM users ORDER BY seasonal_xp DESC LIMIT 10').all();
+        const topUsers = await db.all('SELECT username, seasonal_xp FROM users ORDER BY seasonal_xp DESC LIMIT 10');
 
         if (topUsers.length === 0) return interaction.reply('Belum ada data player buat season ini.');
 
@@ -69,10 +69,9 @@ export async function execute(interaction) {
         const name = interaction.options.getString('nama');
         const duration = interaction.options.getInteger('durasi');
 
-        const newSeason = seasonService.startNewSeason(name, duration);
+        const newSeason = await seasonService.startNewSeason(name, duration);
 
-        // Reset Seasonal XP for everyone
-        db.prepare('UPDATE users SET seasonal_xp = 0').run();
+        await db.run('UPDATE users SET seasonal_xp = 0');
 
         return interaction.reply(`🎉 **SEASON BARU DIMULAI!**\n\n🏆 **Season ${newSeason.season_number}: ${newSeason.name}**\n⏳ Durasi: ${duration} hari.\n\nSemua **Seasonal XP** sudah di-reset ke 0. Let's go!!`);
     }
@@ -82,9 +81,9 @@ export async function execute(interaction) {
             return interaction.reply({ content: '🚫 Khusus Admin woi!', ephemeral: true });
         }
 
-        const current = seasonService.getCurrentSeason();
+        const current = await seasonService.getCurrentSeason();
         if (current) {
-            seasonService.endSeason(current.id);
+            await seasonService.endSeason(current.id);
             return interaction.reply(`🏁 Season **${current.name}** telah diakhiri secara manual.`);
         } else {
             return interaction.reply('Gak ada season yang aktif.');
