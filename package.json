@@ -4,9 +4,6 @@
   "description": "Modular Discord Bot for SantuyTL with Laravel Integration",
   "main": "index.js",
   "type": "module",
-  "engines": {
-    "node": ">=20.9.0"
-  },
   "scripts": {
     "start": "node index.js",
     "start:sharded": "node src/sharding.js",
