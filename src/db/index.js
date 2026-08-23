@@ -1,6 +1,5 @@
 import env from '../config/env.js';
 import mysql from 'mysql2/promise';
-import Database from 'better-sqlite3';
 import path from 'path';
 import fs from 'fs';
 
@@ -24,13 +23,18 @@ if (env.dbType === 'mysql' && env.dbUser && env.dbName) {
     });
 } else {
     console.log('🗄️ Database Mode: SQLite (Local)');
-    const dataDir = path.resolve('data');
-    if (!fs.existsSync(dataDir)) {
-        fs.mkdirSync(dataDir);
+    try {
+        const dataDir = path.resolve('data');
+        if (!fs.existsSync(dataDir)) {
+            fs.mkdirSync(dataDir);
+        }
+        const dbPath = path.join(dataDir, 'santuy.db');
+        const { default: Database } = await import('better-sqlite3');
+        sqliteDb = new Database(dbPath);
+        sqliteDb.pragma('journal_mode = WAL');
+    } catch (err) {
+        console.error('⚠️ SQLite loading fallback failed:', err.message);
     }
-    const dbPath = path.join(dataDir, 'santuy.db');
-    sqliteDb = new Database(dbPath);
-    sqliteDb.pragma('journal_mode = WAL');
 }
 
 // Unified Async Database Interface
@@ -39,7 +43,7 @@ class DatabaseAdapter {
         if (isMySQL) {
             const [rows] = await mysqlPool.execute(sql, params);
             return rows;
-        } else {
+        } else if (sqliteDb) {
             const stmt = sqliteDb.prepare(sql);
             if (sql.trim().toUpperCase().startsWith('SELECT')) {
                 return stmt.all(...params);
@@ -47,6 +51,7 @@ class DatabaseAdapter {
                 return stmt.run(...params);
             }
         }
+        return [];
     }
 
     async get(sql, ...params) {
@@ -54,9 +59,10 @@ class DatabaseAdapter {
         if (isMySQL) {
             const [rows] = await mysqlPool.execute(sql, flatParams);
             return rows[0] || undefined;
-        } else {
+        } else if (sqliteDb) {
             return sqliteDb.prepare(sql).get(...flatParams);
         }
+        return undefined;
     }
 
     async all(sql, ...params) {
@@ -64,9 +70,10 @@ class DatabaseAdapter {
         if (isMySQL) {
             const [rows] = await mysqlPool.execute(sql, flatParams);
             return rows;
-        } else {
+        } else if (sqliteDb) {
             return sqliteDb.prepare(sql).all(...flatParams);
         }
+        return [];
     }
 
     async run(sql, ...params) {
@@ -77,9 +84,10 @@ class DatabaseAdapter {
                 changes: result.affectedRows,
                 lastInsertRowid: result.insertId
             };
-        } else {
+        } else if (sqliteDb) {
             return sqliteDb.prepare(sql).run(...flatParams);
         }
+        return { changes: 0, lastInsertRowid: 0 };
     }
 
     async exec(sql) {
@@ -88,7 +96,7 @@ class DatabaseAdapter {
             for (const stmt of statements) {
                 await mysqlPool.query(stmt);
             }
-        } else {
+        } else if (sqliteDb) {
             sqliteDb.exec(sql);
         }
     }
@@ -208,7 +216,7 @@ async function initTables() {
                 );
             `);
             console.log('✅ MySQL tables initialized successfully.');
-        } else {
+        } else if (sqliteDb) {
             // SQLite Table Setup
             sqliteDb.exec(`
                 CREATE TABLE IF NOT EXISTS users (
