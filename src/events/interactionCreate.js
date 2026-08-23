@@ -222,9 +222,8 @@ export default {
             // ADMIN: Edit Welcome Message
             if (customId === 'modal_edit_welcome_msg') {
                 const text = interaction.fields.getTextInputValue('welcome_text');
-                import('../services/guild.service.js').then(m => {
-                    m.default.updateSetting(interaction.guildId, 'welcome_message', text);
-                });
+                const guildService = await import('../services/guild.service.js').then(m => m.default);
+                await guildService.updateSetting(interaction.guildId, 'welcome_message', text);
                 await interaction.reply({ content: '✅ Welcome Message updated!', ephemeral: true });
                 return;
             }

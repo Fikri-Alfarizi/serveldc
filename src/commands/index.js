@@ -2,7 +2,7 @@ import 'dotenv/config';
 import fs from 'fs';
 import path from 'path';
 import { REST, Routes, Collection } from 'discord.js';
-import { fileURLToPath } from 'url';
+import { fileURLToPath, pathToFileURL } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -13,7 +13,7 @@ export async function loadCommands(client) {
 
     for (const file of commandFiles) {
         const filePath = path.join(__dirname, file);
-        const command = await import(`file://${filePath}`); // Windows compatible
+        const command = await import(pathToFileURL(filePath).href); // Windows compatible
         if ('data' in command && 'execute' in command) {
             client.commands.set(command.data.name, command);
         } else {
@@ -30,7 +30,7 @@ if (process.argv[1] === __filename) {
 
         for (const file of commandFiles) {
             const filePath = path.join(__dirname, file);
-            const command = await import(`file://${filePath}`);
+            const command = await import(pathToFileURL(filePath).href);
             if ('data' in command && 'execute' in command) {
                 commands.push(command.data.toJSON());
             }
