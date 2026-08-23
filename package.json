@@ -2,13 +2,13 @@
   "name": "santuytl-discord-bot",
   "version": "1.0.0",
   "description": "Modular Discord Bot for SantuyTL with Laravel Integration",
-  "main": "src/index.js",
+  "main": "index.js",
   "type": "module",
   "engines": {
     "node": ">=20.9.0"
   },
   "scripts": {
-    "start": "npm run deploy-commands && node src/index.js",
+    "start": "node index.js",
     "start:sharded": "node src/sharding.js",
     "dev": "nodemon src/index.js",
     "deploy-commands": "node src/commands/index.js"
